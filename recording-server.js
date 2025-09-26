@@ -423,14 +423,23 @@ class PlaywrightWithRecordingMCPServer {
         if (req.url === '/health') {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
-        } else if (req.url === '/mcp' || req.url.startsWith('/mcp?')) {
+        } else if (req.url === '/mcp') {
           try {
             console.error('New MCP connection request from', req.headers['user-agent'] || 'unknown');
             console.error('Request URL:', req.url);
             console.error('Request method:', req.method);
 
-            // Don't set headers here, let the transport handle them
-            const transport = new SSEServerTransport('/mcp', res);
+            // Set proper SSE headers
+            res.writeHead(200, {
+              'Content-Type': 'text/event-stream',
+              'Cache-Control': 'no-cache',
+              'Connection': 'keep-alive',
+              'Access-Control-Allow-Origin': '*',
+              'Access-Control-Allow-Headers': 'Content-Type, Cache-Control'
+            });
+
+            // Handle connection directly without session redirection
+            const transport = new SSEServerTransport('', res);
             console.error('SSE transport created');
             await this.server.connect(transport);
             console.error('Server connected to transport');
