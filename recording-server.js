@@ -32,7 +32,14 @@ const {
 const { chromium, firefox, webkit } = require('playwright');
 
 // Import our recording tools
-const recordingTools = require('./lib/recordingTools');
+let recordingTools;
+try {
+  recordingTools = require('./lib/recordingTools');
+} catch (e) {
+  console.error('Warning: Could not load compiled recording tools, using fallback');
+  // Fallback: define tools inline
+  recordingTools = { default: [] }; // Will be populated below
+}
 
 class PlaywrightWithRecordingMCPServer {
   constructor() {

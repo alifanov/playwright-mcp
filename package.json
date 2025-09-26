@@ -28,7 +28,7 @@
     "roll": "npm run copy-config && npm run lint",
     "recording-server": "node recording-server.js",
     "test-recording": "node test-recording.js",
-    "build": "npx tsc src/recordingTools.ts --target es2020 --module commonjs --outDir lib --skipLibCheck --esModuleInterop"
+    "build": "npx tsc src/recordingTools.ts src/sessionTools.ts src/runArtifacts.ts --target es2020 --module commonjs --outDir lib --skipLibCheck --esModuleInterop"
   },
   "exports": {
     "./package.json": "./package.json",

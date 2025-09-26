@@ -8,8 +8,11 @@ RUN npm ci
 # Копируем исходники
 COPY . .
 
-# Сборка TypeScript для recording tools
-RUN npx tsc src/recordingTools.ts --target es2020 --module commonjs --outDir lib --skipLibCheck --esModuleInterop || true
+# Сборка recording tools (используем готовый скрипт)
+RUN npm run build
+
+# Проверим что файлы созданы
+RUN ls -la lib/ || echo "No lib directory created"
 
 # Порт MCP-сервера
 EXPOSE 8831
