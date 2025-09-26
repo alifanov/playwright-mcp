@@ -2,6 +2,25 @@
 
 A Model Context Protocol (MCP) server that provides browser automation capabilities using [Playwright](https://playwright.dev). This server enables LLMs to interact with web pages through structured accessibility snapshots, bypassing the need for screenshots or visually-tuned models.
 
+### 🎬 **New: Session Recording Capabilities**
+
+This fork includes **session recording management tools** that provide comprehensive browser session recording with organized artifact storage:
+
+- **Video Recording**: 1280x720 WebM recordings of browser sessions
+- **Network HAR**: Complete HTTP request/response capture
+- **Playwright Traces**: Screenshots, snapshots, and execution details
+- **Organized Storage**: Files stored in `/data/{projectId}/{runId}/` structure
+- **Public URLs**: Artifacts accessible via `https://videos.qabot.app/`
+
+**Quick Start with Recording:**
+```bash
+# Run the recording-enabled server
+pnpm run recording-server
+
+# Or test the recording tools
+pnpm run test-recording
+```
+
 ### Key Features
 
 - **Fast and lightweight**. Uses Playwright's accessibility tree, not pixel-based input.
@@ -780,6 +799,60 @@ http.createServer(async (req, res) => {
   - Description: Stop trace recording
   - Parameters: None
   - Read-only: **true**
+
+</details>
+
+<details>
+<summary><b>🎬 Session Recording (standalone server)</b></summary>
+
+**Available in the standalone recording server (`pnpm run recording-server`):**
+
+- **browser_start_recording**
+  - Title: Start recording
+  - Description: Start a new browser session recording that captures video, network requests, and traces
+  - Parameters:
+    - `projectId` (string, required): Project identifier for organizing recordings
+    - `runId` (string, optional): Run identifier. Auto-generated if not provided
+  - Read-only: **false**
+
+- **browser_stop_recording**
+  - Title: Stop recording
+  - Description: Stop the current recording session and retrieve artifact URLs
+  - Parameters: None
+  - Read-only: **false**
+
+- **browser_recording_status**
+  - Title: Recording status
+  - Description: Check the status of the current recording session
+  - Parameters: None
+  - Read-only: **true**
+
+- **browser_list_recordings**
+  - Title: List recordings
+  - Description: List recent recording sessions with their status and artifacts
+  - Parameters:
+    - `limit` (number, optional): Maximum recordings to return (default: 10, max: 100)
+  - Read-only: **true**
+
+- **browser_get_recording_artifacts**
+  - Title: Get recording artifacts
+  - Description: Get artifact URLs for a completed recording session
+  - Parameters:
+    - `projectId` (string, required): Project identifier of the recording
+    - `runId` (string, required): Run identifier of the recording
+  - Read-only: **true**
+
+**Usage Example:**
+```javascript
+// Start recording
+{"name": "browser_start_recording", "arguments": {"projectId": "test-session"}}
+
+// Navigate and interact with the page
+{"name": "browser_navigate", "arguments": {"url": "https://example.com"}}
+
+// Stop recording and get artifacts
+{"name": "browser_stop_recording", "arguments": {}}
+```
 
 </details>
 

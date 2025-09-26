@@ -25,7 +25,10 @@
     "dtest": "MCP_IN_DOCKER=1 playwright test --project=chromium-docker",
     "npm-publish": "npm run clean && npm run test && npm publish",
     "copy-config": "cp ../playwright/packages/playwright/src/mcp/config.d.ts . && perl -pi -e \"s|import type \\* as playwright from 'playwright-core';|import type * as playwright from 'playwright';|\" ./config.d.ts",
-    "roll": "npm run copy-config && npm run lint"
+    "roll": "npm run copy-config && npm run lint",
+    "recording-server": "node recording-server.js",
+    "test-recording": "node test-recording.js",
+    "build": "npx tsc src/recordingTools.ts --target es2020 --module commonjs --outDir lib --skipLibCheck --esModuleInterop"
   },
   "exports": {
     "./package.json": "./package.json",
