@@ -1,0 +1,31 @@
+services:
+  mcp-playwright:
+    build: .
+    user: "0:0"
+    shm_size: "1gb"
+    restart: unless-stopped
+    volumes:
+      - mcp_data:/data
+    environment:
+      - NODE_ENV=production
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mcp-playwright.rule=Host(`playwright-record-mcp.qabot.app`)"
+      - "traefik.http.routers.mcp-playwright.entrypoints=websecure"
+      - "traefik.http.routers.mcp-playwright.tls=true"
+      - "traefik.http.services.mcp-playwright.loadbalancer.server.port=8831"
+
+  recordings-server:
+    image: nginx:alpine
+    restart: unless-stopped
+    volumes:
+      - mcp_data:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.recordings.rule=Host(`videos.qabot.app`)"
+      - "traefik.http.routers.recordings.entrypoints=websecure"
+      - "traefik.http.routers.recordings.tls=true"
+      - "traefik.http.services.recordings.loadbalancer.server.port=80"
+
+volumes:
+  mcp_data:
