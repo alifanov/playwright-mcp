@@ -420,21 +420,30 @@ class PlaywrightWithRecordingMCPServer {
           return;
         }
 
-        if (req.url === '/mcp') {
+        if (req.url === '/health') {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
+        } else if (req.url === '/mcp' || req.url.startsWith('/mcp?')) {
           try {
-            console.error('New MCP connection request');
+            console.error('New MCP connection request from', req.headers['user-agent'] || 'unknown');
+            console.error('Request URL:', req.url);
+            console.error('Request method:', req.method);
+
+            // Don't set headers here, let the transport handle them
             const transport = new SSEServerTransport('/mcp', res);
             console.error('SSE transport created');
             await this.server.connect(transport);
             console.error('Server connected to transport');
           } catch (error) {
             console.error('SSE transport error:', error);
-            res.writeHead(500, { 'Content-Type': 'text/plain' });
-            res.end('Internal server error');
+            if (!res.headersSent) {
+              res.writeHead(500, { 'Content-Type': 'text/plain' });
+              res.end('Internal server error: ' + error.message);
+            }
           }
         } else {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
-          res.end('Not found. Use /mcp for MCP over SSE');
+          res.end('Not found. Use /mcp for MCP over SSE or /health for status');
         }
       });
 
