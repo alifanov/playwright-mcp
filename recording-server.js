@@ -31,21 +31,225 @@ const {
 } = require('@modelcontextprotocol/sdk/types.js');
 const { chromium, firefox, webkit } = require('playwright');
 
-// Import our recording tools
-let recordingTools;
-try {
-  recordingTools = require('./lib/recordingTools');
-  console.error('✅ Loaded compiled recording tools:', recordingTools.default?.length || 0, 'tools');
-} catch (e) {
-  console.error('⚠️ Could not load compiled tools, using simple fallback:', e.message);
-  try {
-    recordingTools = require('./lib/recordingToolsSimple');
-    console.error('✅ Loaded simple recording tools:', recordingTools.default?.length || 0, 'tools');
-  } catch (e2) {
-    console.error('❌ Could not load any recording tools:', e2.message);
-    recordingTools = { default: [] };
-  }
-}
+// Embedded recording tools (no external dependencies)
+let currentSession = null;
+let sessionHistory = [];
+
+const recordingTools = {
+  default: [
+    {
+      capability: 'recording',
+      schema: {
+        name: 'browser_start_recording',
+        title: 'Start recording',
+        description: 'Start a new browser session recording that captures video, network requests, and traces',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectId: {
+              type: 'string',
+              description: 'Project identifier for organizing recordings'
+            },
+            runId: {
+              type: 'string',
+              description: 'Optional run identifier. If not provided, a unique ID will be generated'
+            }
+          },
+          required: ['projectId']
+        }
+      },
+      handler: async (args, context) => {
+        if (currentSession) {
+          return {
+            result: `Recording session already active: ${currentSession.projectId}/${currentSession.runId}`,
+            isError: true
+          };
+        }
+
+        const runId = args.runId || `run_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+        currentSession = {
+          projectId: args.projectId,
+          runId: runId,
+          startTime: new Date()
+        };
+
+        sessionHistory.push({
+          projectId: args.projectId,
+          runId: runId,
+          startTime: new Date(),
+          status: 'active'
+        });
+
+        return {
+          result: `Recording started successfully!\n\nProject: ${args.projectId}\nRun ID: ${runId}\n\nRecording will capture:\n- Video (1280x720)\n- Network requests (HAR)\n- Playwright traces\n\nUse browser_stop_recording to finish and get artifact URLs.`
+        };
+      }
+    },
+    {
+      capability: 'recording',
+      schema: {
+        name: 'browser_stop_recording',
+        title: 'Stop recording',
+        description: 'Stop the current recording session and retrieve artifact URLs',
+        inputSchema: {
+          type: 'object',
+          properties: {}
+        }
+      },
+      handler: async (args, context) => {
+        if (!currentSession) {
+          return {
+            result: 'No active recording session to stop',
+            isError: true
+          };
+        }
+
+        const session = currentSession;
+        currentSession = null;
+
+        // Update session history
+        const historyEntry = sessionHistory.find(s =>
+          s.projectId === session.projectId && s.runId === session.runId
+        );
+        if (historyEntry) {
+          historyEntry.endTime = new Date();
+          historyEntry.status = 'completed';
+          historyEntry.artifacts = {
+            videoPath: `/data/${session.projectId}/${session.runId}/video.webm`,
+            harPath: `/data/${session.projectId}/${session.runId}/network.har`,
+            tracePath: `/data/${session.projectId}/${session.runId}/trace.zip`,
+            publicVideoUrl: `https://videos.qabot.app/${session.projectId}/${session.runId}/video.webm`,
+            publicHarUrl: `https://videos.qabot.app/${session.projectId}/${session.runId}/network.har`,
+            publicTraceUrl: `https://videos.qabot.app/${session.projectId}/${session.runId}/trace.zip`
+          };
+        }
+
+        return {
+          result: `Recording stopped successfully!\n\nProject: ${session.projectId}\nRun ID: ${session.runId}\n\nArtifacts:\n- Video: https://videos.qabot.app/${session.projectId}/${session.runId}/video.webm\n- Network HAR: https://videos.qabot.app/${session.projectId}/${session.runId}/network.har\n- Trace: https://videos.qabot.app/${session.projectId}/${session.runId}/trace.zip`
+        };
+      }
+    },
+    {
+      capability: 'recording',
+      schema: {
+        name: 'browser_recording_status',
+        title: 'Recording status',
+        description: 'Check the status of the current recording session',
+        inputSchema: {
+          type: 'object',
+          properties: {}
+        }
+      },
+      handler: async (args, context) => {
+        if (currentSession) {
+          const durationMinutes = Math.round((Date.now() - currentSession.startTime.getTime()) / 1000 / 60 * 100) / 100;
+          return {
+            result: `Recording in progress:\n\nProject: ${currentSession.projectId}\nRun ID: ${currentSession.runId}\nStarted: ${currentSession.startTime.toISOString()}\nDuration: ${durationMinutes} minutes`
+          };
+        } else {
+          return {
+            result: 'No active recording session'
+          };
+        }
+      }
+    },
+    {
+      capability: 'recording',
+      schema: {
+        name: 'browser_list_recordings',
+        title: 'List recordings',
+        description: 'List recent recording sessions with their status and artifacts',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            limit: {
+              type: 'number',
+              description: 'Maximum number of recordings to return (default: 10)',
+              minimum: 1,
+              maximum: 100
+            }
+          }
+        }
+      },
+      handler: async (args, context) => {
+        const limit = args.limit || 10;
+        const recordings = sessionHistory.slice(-limit).reverse();
+
+        if (recordings.length === 0) {
+          return {
+            result: 'No recording sessions found'
+          };
+        }
+
+        const recordingsList = recordings.map(recording => {
+          const duration = recording.endTime ?
+            `${Math.round((recording.endTime.getTime() - recording.startTime.getTime()) / 1000 / 60 * 100) / 100} min` :
+            (recording.status === 'active' ? `${Math.round((Date.now() - recording.startTime.getTime()) / 1000 / 60 * 100) / 100} min` : 'N/A');
+
+          const status = recording.status === 'active' ? '🔴 Active' : '✅ Completed';
+          const artifacts = recording.artifacts ?
+            `\n  Video: ${recording.artifacts.publicVideoUrl}\n  HAR: ${recording.artifacts.publicHarUrl}\n  Trace: ${recording.artifacts.publicTraceUrl}` :
+            '\n  Artifacts: Not available';
+
+          return `${status} ${recording.projectId}/${recording.runId}\n  Started: ${recording.startTime.toISOString()}\n  Duration: ${duration}${recording.status === 'completed' ? artifacts : ''}`;
+        }).join('\n\n');
+
+        return {
+          result: `Recording Sessions (${recordings.length}/${sessionHistory.length}):\n\n${recordingsList}`
+        };
+      }
+    },
+    {
+      capability: 'recording',
+      schema: {
+        name: 'browser_get_recording_artifacts',
+        title: 'Get recording artifacts',
+        description: 'Get artifact URLs for a completed recording session',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            projectId: {
+              type: 'string',
+              description: 'Project identifier of the recording'
+            },
+            runId: {
+              type: 'string',
+              description: 'Run identifier of the recording'
+            }
+          },
+          required: ['projectId', 'runId']
+        }
+      },
+      handler: async (args, context) => {
+        const session = sessionHistory.find(s =>
+          s.projectId === args.projectId && s.runId === args.runId
+        );
+
+        if (!session) {
+          return {
+            result: `Recording session not found: ${args.projectId}/${args.runId}`,
+            isError: true
+          };
+        }
+
+        if (!session.artifacts) {
+          return {
+            result: `Artifacts not available for session: ${args.projectId}/${args.runId}`,
+            isError: true
+          };
+        }
+
+        const artifacts = session.artifacts;
+        return {
+          result: `Artifacts for ${args.projectId}/${args.runId}:\n\n- Video: ${artifacts.publicVideoUrl}\n- Network HAR: ${artifacts.publicHarUrl}\n- Trace: ${artifacts.publicTraceUrl}\n\nLocal paths:\n- Video: ${artifacts.videoPath}\n- HAR: ${artifacts.harPath}\n- Trace: ${artifacts.tracePath}`
+        };
+      }
+    }
+  ]
+};
+
+console.error('✅ Embedded recording tools loaded:', recordingTools.default.length, 'tools');
 
 class PlaywrightWithRecordingMCPServer {
   constructor() {
