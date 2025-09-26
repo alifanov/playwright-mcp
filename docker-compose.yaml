@@ -10,7 +10,7 @@ services:
       - NODE_ENV=production
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.mcp-playwright.rule=Host(`playwright-record-mcp.qabot.app`)"
+      - "traefik.http.routers.mcp-playwright.rule=Host(`mcp-playwright-recorder.qabot.app`)"
       - "traefik.http.routers.mcp-playwright.entrypoints=websecure"
       - "traefik.http.routers.mcp-playwright.tls=true"
       - "traefik.http.services.mcp-playwright.loadbalancer.server.port=8831"
