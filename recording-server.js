@@ -35,12 +35,14 @@ const { chromium, firefox, webkit } = require('playwright');
 let recordingTools;
 try {
   recordingTools = require('./lib/recordingTools');
+  console.error('✅ Loaded compiled recording tools:', recordingTools.default?.length || 0, 'tools');
 } catch (e) {
-  console.error('Using simple recording tools fallback');
+  console.error('⚠️ Could not load compiled tools, using simple fallback:', e.message);
   try {
     recordingTools = require('./lib/recordingToolsSimple');
+    console.error('✅ Loaded simple recording tools:', recordingTools.default?.length || 0, 'tools');
   } catch (e2) {
-    console.error('Warning: Could not load any recording tools');
+    console.error('❌ Could not load any recording tools:', e2.message);
     recordingTools = { default: [] };
   }
 }
