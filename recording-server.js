@@ -409,9 +409,29 @@ class PlaywrightWithRecordingMCPServer {
     if (port) {
       // HTTP/SSE mode for Docker
       const httpServer = http.createServer(async (req, res) => {
-        if (req.url === '/mcp' || req.url === '/sse') {
-          const transport = new SSEServerTransport('/mcp', res);
-          await this.server.connect(transport);
+        // Add CORS headers
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+        if (req.method === 'OPTIONS') {
+          res.writeHead(200);
+          res.end();
+          return;
+        }
+
+        if (req.url === '/mcp') {
+          try {
+            console.error('New MCP connection request');
+            const transport = new SSEServerTransport('/mcp', res);
+            console.error('SSE transport created');
+            await this.server.connect(transport);
+            console.error('Server connected to transport');
+          } catch (error) {
+            console.error('SSE transport error:', error);
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('Internal server error');
+          }
         } else {
           res.writeHead(404, { 'Content-Type': 'text/plain' });
           res.end('Not found. Use /mcp for MCP over SSE');
