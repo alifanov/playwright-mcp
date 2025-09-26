@@ -429,16 +429,7 @@ class PlaywrightWithRecordingMCPServer {
             console.error('Request URL:', req.url);
             console.error('Request method:', req.method);
 
-            // Set proper SSE headers
-            res.writeHead(200, {
-              'Content-Type': 'text/event-stream',
-              'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive',
-              'Access-Control-Allow-Origin': '*',
-              'Access-Control-Allow-Headers': 'Content-Type, Cache-Control'
-            });
-
-            // Handle connection directly without session redirection
+            // Let the SSE transport handle headers, but create without endpoint redirection
             const transport = new SSEServerTransport('', res);
             console.error('SSE transport created');
             await this.server.connect(transport);
