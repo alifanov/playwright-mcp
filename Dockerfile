@@ -8,11 +8,8 @@ RUN npm ci
 # Копируем исходники
 COPY . .
 
-# Сборка recording tools (используем готовый скрипт)
-RUN npm run build
-
-# Проверим что файлы созданы
-RUN ls -la lib/ || echo "No lib directory created"
+# Убедимся что папка lib существует и проверим файлы
+RUN mkdir -p lib && ls -la lib/ && echo "Recording tools files:" && find . -name "*recording*" -type f
 
 # Порт MCP-сервера
 EXPOSE 8831

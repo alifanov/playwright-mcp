@@ -36,9 +36,13 @@ let recordingTools;
 try {
   recordingTools = require('./lib/recordingTools');
 } catch (e) {
-  console.error('Warning: Could not load compiled recording tools, using fallback');
-  // Fallback: define tools inline
-  recordingTools = { default: [] }; // Will be populated below
+  console.error('Using simple recording tools fallback');
+  try {
+    recordingTools = require('./lib/recordingToolsSimple');
+  } catch (e2) {
+    console.error('Warning: Could not load any recording tools');
+    recordingTools = { default: [] };
+  }
 }
 
 class PlaywrightWithRecordingMCPServer {
